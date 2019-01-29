@@ -13,7 +13,17 @@ class SQSPoller:
 
     def __init__(self, options):
         self.options = options
-        self.sqs_client = boto3.client('sqs')
+
+        boto3.setup_default_session(region_name=options.aws_region)
+
+        # Use AWS_ACCESS_KEY_ID and
+        sqs_opts = {}
+        if 'AWS_ACCESS_KEY_ID' in os.environ and 'AWS_SECRET_ACCESS_KEY' in os.environ:
+            sqs_opts['aws_access_key_id'] = os.environ['AWS_ACCESS_KEY_ID']
+            sqs_opts['aws_secret_access_key'] = os.environ['AWS_SECRET_ACCESS_KEY']
+
+        self.sqs_client = boto3.client('sqs', **sqs_opts)
+
         config.load_incluster_config()
         self.apps_v1 = client.AppsV1Api()
         self.last_scale_up_time = time()

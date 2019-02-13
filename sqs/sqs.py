@@ -14,10 +14,10 @@ class SQSPoller:
     def __init__(self, options):
         self.options = options
 
-        boto3.setup_default_session(region_name=options.aws_region)
-
         # Use AWS_ACCESS_KEY_ID and
-        sqs_opts = {}
+        sqs_opts = {
+          "region_name": options.aws_region
+        }
         if 'AWS_ACCESS_KEY_ID' in os.environ and 'AWS_SECRET_ACCESS_KEY' in os.environ:
             sqs_opts['aws_access_key_id'] = os.environ['AWS_ACCESS_KEY_ID']
             sqs_opts['aws_secret_access_key'] = os.environ['AWS_SECRET_ACCESS_KEY']
@@ -30,17 +30,23 @@ class SQSPoller:
         self.last_scale_down_time = time()
 
     def message_count(self):
-        response = self.sqs_client.get_queue_attributes(
-            QueueUrl=self.options.sqs_queue_url,
-            AttributeNames=['ApproximateNumberOfMessages']
-        )
-        return int(response['Attributes']['ApproximateNumberOfMessages'])
-
+        try:
+            response = self.sqs_client.get_queue_attributes(
+                QueueUrl=self.options.sqs_queue_url,
+                AttributeNames=['ApproximateNumberOfMessages']
+            )
+            return int(response['Attributes']['ApproximateNumberOfMessages'])
+        except Exception as e:
+            logger.error("Failed to fetch a number of messages: %s" % str(e))
+            return None
 
     def poll(self):
         message_count = self.message_count()
+        if not message_count:
+            return
+
         t = time()
-        if  message_count >= self.options.scale_up_messages:
+        if message_count >= self.options.scale_up_messages:
             if t - self.last_scale_up_time > self.options.scale_up_cool_down:
                 self.scale_up()
                 self.last_scale_up_time = t
@@ -52,9 +58,6 @@ class SQSPoller:
                 self.last_scale_down_time = t
             else:
                 logger.debug("Waiting for scale down cooldown")
-
-        # code for scale to use msg_count
-        sleep(self.options.poll_period)
 
     def scale_up(self):
         deployment = self.deployment()
@@ -94,8 +97,10 @@ class SQSPoller:
     def run(self):
         options = self.options
         logger.debug("Starting poll for {} every {}s".format(options.sqs_queue_url, options.poll_period))
+
         while True:
             self.poll()
+            sleep(self.options.poll_period)
 
 def run(options):
     """

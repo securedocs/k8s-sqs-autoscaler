@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 
 from optparse import OptionParser
-from sqs import sqs
-from logs.log import logger
-
+from lib.sqs_poller import SQSPoller
 
 if __name__ == '__main__':
     parser = OptionParser()
@@ -15,9 +13,6 @@ if __name__ == '__main__':
                       help="")
     parser.add_option("--kubernetes-namespace",
                       dest="kubernetes_namespace",
-                      help="")
-    parser.add_option("--aws-region",
-                      dest="aws_region",
                       help="")
     parser.add_option("--poll-period",
                       dest="poll_period",
@@ -61,11 +56,7 @@ if __name__ == '__main__':
         parser.error('SQS_QUEUE_URL not given')
     if not options.kubernetes_deployment:
         parser.error('KUBERNETES_DEPLOYMENT not given')
-    if not options.aws_region:
-        parser.error('AWS_REGION not given')
     if not options.kubernetes_namespace:
         parser.error('KUBERNETES_NAMESPACE not given')
-    if not options.kubernetes_deployment:
-        parser.error('KUBERNETES_DEPLOYMENT not given')
-    logger.debug(options)
-    sqs.run(options)
+
+    SQSPoller(options).run()

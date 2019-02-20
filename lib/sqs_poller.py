@@ -1,6 +1,5 @@
 import boto3
 import os
-import re
 from time import sleep, time
 from kubernetes import client, config
 from lib.utils import logger, queue_url_region, enforce_env_vars
@@ -12,13 +11,13 @@ class DeploymentNotFoundError(Exception):
 
 
 class SQSPoller:
-    REQUIRED_ENV_VARS    = ('AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY')
-    options              = None
-    sqs_client           = None
-    apps_v1              = None
-    last_scale_up_time   = 0
+    REQUIRED_ENV_VARS = ('AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY')
+    options = None
+    sqs_client = None
+    apps_v1 = None
+    last_scale_up_time = 0
     last_scale_down_time = 0
-    logger               = logger('sqs-queue-autoscaler')
+    logger = logger('sqs-queue-autoscaler')
 
     def __init__(self, options):
         self.options = options
@@ -27,10 +26,11 @@ class SQSPoller:
 
         enforce_env_vars(self.REQUIRED_ENV_VARS)
 
-        self.sqs_client = boto3.client('sqs',
-            region_name           = queue_url_region(self.options.sqs_queue_url),
-            aws_access_key_id     = os.environ.get('AWS_ACCESS_KEY_ID'),
-            aws_secret_access_key = os.environ.get('AWS_SECRET_ACCESS_KEY'))
+        self.sqs_client = boto3.client(
+            'sqs',
+            region_name=queue_url_region(self.options.sqs_queue_url),
+            aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
+            aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'))
 
         config.load_incluster_config()
         self.apps_v1 = client.AppsV1Api()
@@ -51,7 +51,7 @@ class SQSPoller:
             self.logger.debug('Messages in the queue: %s' % messages)
 
             deployment = self.get_deployment()
-            pods       = self.get_pods_delta(deployment, messages)
+            pods = self.get_pods_delta(deployment, messages)
             self.logger.debug('Pods delta: %s' % pods)
             if pods != 0:
                 self.safe_update_deployment(deployment, pods)
@@ -68,8 +68,8 @@ class SQSPoller:
         int
         '''
         response = self.sqs_client.get_queue_attributes(
-            QueueUrl       = self.options.sqs_queue_url,
-            AttributeNames = ['ApproximateNumberOfMessages']
+            QueueUrl=self.options.sqs_queue_url,
+            AttributeNames=['ApproximateNumberOfMessages']
         )
         return int(response['Attributes']['ApproximateNumberOfMessages'])
 
@@ -104,13 +104,13 @@ class SQSPoller:
         # So we are within allowed min/max pod boundaries.
         # Do we need to scale it up by a pod?
         if messages >= self.options.scale_up_messages \
-            and pods < self.options.max_pods:
-                return 1
+                and pods < self.options.max_pods:
+            return 1
 
         # Do we need to scale it down by a pod?
         if messages <= self.options.scale_down_messages \
-            and pods > self.options.min_pods:
-                return -1
+                and pods > self.options.min_pods:
+            return -1
 
         return 0
 
@@ -206,8 +206,8 @@ class SQSPoller:
 
         # Update the deployment
         api_response = self.apps_v1.patch_namespaced_deployment(
-            namespace = self.options.kubernetes_namespace,
-            name      = self.options.kubernetes_deployment,
-            body      = deployment)
+            namespace=self.options.kubernetes_namespace,
+            name=self.options.kubernetes_deployment,
+            body=deployment)
 
         self.logger.debug('Deployment updated. status="%s"' % str(api_response.status))

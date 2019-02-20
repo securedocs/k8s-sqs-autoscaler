@@ -16,12 +16,14 @@ def logger(name):
     return logger
 
 def queue_url_region(url):
-    match = re.match(r'https://sqs.([^.]+)', url)
-    if match:
-        return match[1]
-    raise Exception('Cannot extract AWS region from: %s' % url)
+    match = re.match(r'(https?)://sqs.([^.]+)', url)
+    assert match, 'Failed to extract AWS region from %s' % url
+
+    scheme, region = match[1], match[2]
+    assert scheme == 'https', 'Queue URL must have https scheme'
+
+    return region
 
 def enforce_env_vars(vars):
     for var in vars:
-        if not os.environ.get(var):
-            raise Exception('Environment variable not found: %s' % var)
+        assert os.environ.get(var), 'Environment variable is not present: %s' % var
